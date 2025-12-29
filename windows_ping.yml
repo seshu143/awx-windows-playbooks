@@ -1,6 +1,6 @@
 ---
 - name: Windows Ping Test using local account
-  hosts: windows
+  hosts: all
   gather_facts: no
 
   tasks:

@@ -1,8 +1,8 @@
 ---
-- name: Windows Ping Test
-  hosts: all
+- name: Windows Ping Test using local account
+  hosts: windows
   gather_facts: no
 
   tasks:
     - name: Ping Windows servers
-      win_ping:
+      ansible.windows.win_ping:

@@ -4,7 +4,7 @@
   gather_facts: yes
 
   vars:
-    project_dir: /var/lib/awx/projects/windows-manual-project
+    project_dir: /runner/project
     report_file: windows_inventory_report.csv
 
   tasks:
@@ -24,7 +24,7 @@
           {{ ansible_os_name }},
           {{ ansible_os_version }},
           {{ ansible_processor_count }},
-          {{ (ansible_memtotal_mb | default('NA')) }},
+          {{ ansible_memtotal_mb }},
           SUCCESS
         insertafter: EOF
       delegate_to: localhost
@@ -34,7 +34,7 @@
   gather_facts: no
 
   vars:
-    project_dir: /var/lib/awx/projects/windows-manual-project
+    project_dir: /runner/project
     report_file: windows_inventory_report.csv
 
   tasks:

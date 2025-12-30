@@ -1,0 +1,24 @@
+---
+- name: Collect Windows CPU, Memory, OS details
+  hosts: windows
+  gather_facts: no
+
+  tasks:
+    - name: Get Windows system facts
+      ansible.windows.win_shell: |
+        $os = Get-CimInstance Win32_OperatingSystem
+        $cpu = Get-CimInstance Win32_Processor
+        $memTotal = [math]::Round($os.TotalVisibleMemorySize / 1MB, 2)
+        $memFree = [math]::Round($os.FreePhysicalMemory / 1MB, 2)
+
+        Write-Output "Hostname=$env:COMPUTERNAME"
+        Write-Output "OS=$($os.Caption)"
+        Write-Output "OSVersion=$($os.Version)"
+        Write-Output "CPU_Count=$($cpu.Count)"
+        Write-Output "Total_Memory_GB=$memTotal"
+        Write-Output "Free_Memory_GB=$memFree"
+      register: sysinfo
+
+    - name: Show system info
+      debug:
+        msg: "{{ sysinfo.stdout_lines }}"

@@ -1,19 +1,17 @@
 ---
 - name: Windows Inventory CSV and Push to GitHub
   hosts: all
-  gather_facts: yes
+  gather_facts: no
 
   vars:
     csv_file: windows_inventory.csv
 
   tasks:
-    - name: Build CSV line
-      set_fact:
-        csv_line: >-
-          {{ ansible_hostname }},
-          {{ ansible_facts.os_name }},
-          {{ ansible_facts.os_version }},
-          {{ ansible_facts.os_build }}
+    - name: Collect Windows OS details
+      ansible.windows.win_shell: |
+        $os = Get-CimInstance Win32_OperatingSystem
+        "$($env:COMPUTERNAME),$($os.Caption),$($os.Version),$($os.BuildNumber)"
+      register: win_os
 
     - name: Create CSV header (once)
       copy:
@@ -25,7 +23,7 @@
     - name: Append CSV data
       lineinfile:
         path: "{{ playbook_dir }}/{{ csv_file }}"
-        line: "{{ csv_line }}"
+        line: "{{ win_os.stdout }}"
       delegate_to: localhost
 
 - name: Commit and Push CSV to GitHub

@@ -1,43 +1,55 @@
 ---
-- name: Windows System Report CSV + Push to Git
+- name: Collect Windows inventory and generate CSV
   hosts: all
-  gather_facts: no
+  gather_facts: yes
 
   vars:
-    repo_path: /var/lib/awx/projects/windows-manual-project
-    csv_file: windows_system_report.csv
+    project_dir: /var/lib/awx/projects/windows-manual-project
+    report_file: windows_inventory_report.csv
 
   tasks:
-    - name: Collect system info
-      ansible.windows.win_shell: |
-        $os = Get-CimInstance Win32_OperatingSystem
-        $cpu = Get-CimInstance Win32_Processor
-        $ram = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)
-        Write-Output "$env:COMPUTERNAME,$($os.Caption),$($cpu.Count),$ram"
-      register: sysinfo
-
-    - name: Create CSV header (once)
+    - name: Create CSV header (run once)
       copy:
-        content: "hostname,os,cpu,ram_gb\n"
-        dest: "{{ repo_path }}/{{ csv_file }}"
-      delegate_to: localhost
+        dest: "{{ project_dir }}/{{ report_file }}"
+        content: "Hostname,IP,OS,OS_Version,CPU_Count,Total_Memory_MB,Ping_Status\n"
       run_once: true
+      delegate_to: localhost
 
-    - name: Append CSV row
+    - name: Append server details to CSV
       lineinfile:
-        path: "{{ repo_path }}/{{ csv_file }}"
-        line: "{{ inventory_hostname }},{{ sysinfo.stdout }}"
+        path: "{{ project_dir }}/{{ report_file }}"
+        line: >-
+          {{ ansible_hostname }},
+          {{ ansible_default_ipv4.address }},
+          {{ ansible_os_name }},
+          {{ ansible_os_version }},
+          {{ ansible_processor_count }},
+          {{ (ansible_memtotal_mb | default('NA')) }},
+          SUCCESS
         insertafter: EOF
       delegate_to: localhost
 
-- name: Commit CSV to Git
+- name: Commit and push CSV report to GitHub
   hosts: localhost
   gather_facts: no
 
+  vars:
+    project_dir: /var/lib/awx/projects/windows-manual-project
+    report_file: windows_inventory_report.csv
+
   tasks:
-    - name: Commit and push CSV
-      shell: |
-        cd {{ repo_path }}
-        git add {{ csv_file }}
-        git commit -m "Windows system report CSV"
-        git push
+    - name: Git add CSV
+      shell: git add {{ report_file }}
+      args:
+        chdir: "{{ project_dir }}"
+
+    - name: Git commit CSV
+      shell: git commit -m "Update Windows inventory report"
+      args:
+        chdir: "{{ project_dir }}"
+      ignore_errors: yes
+
+    - name: Git push CSV
+      shell: git push origin main
+      args:
+        chdir: "{{ project_dir }}"

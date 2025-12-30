@@ -1,10 +1,8 @@
 ---
-- name: Windows Inventory CSV and Push to GitHub
+# PART 1: Collect data from Windows servers
+- name: Collect Windows inventory
   hosts: all
   gather_facts: no
-
-  vars:
-    csv_file: windows_inventory.csv
 
   tasks:
     - name: Collect Windows OS details
@@ -13,36 +11,43 @@
         "$($env:COMPUTERNAME),$($os.Caption),$($os.Version),$($os.BuildNumber)"
       register: win_os
 
-    - name: Create CSV header (once)
-      copy:
-        dest: "{{ playbook_dir }}/{{ csv_file }}"
-        content: "hostname,os_name,os_version,os_build\n"
-      run_once: true
-      delegate_to: localhost
+    - name: Save CSV line per host
+      set_fact:
+        csv_line: "{{ win_os.stdout }}"
 
-    - name: Append CSV data
-      lineinfile:
-        path: "{{ playbook_dir }}/{{ csv_file }}"
-        line: "{{ win_os.stdout }}"
-      delegate_to: localhost
-
-- name: Commit and Push CSV to GitHub
+# PART 2: Build CSV and push to GitHub (controller only)
+- name: Build CSV and push to GitHub
   hosts: localhost
   gather_facts: no
 
+  vars:
+    csv_file: windows_inventory.csv
+
   tasks:
+    - name: Create CSV header
+      copy:
+        dest: "/runner/project/{{ csv_file }}"
+        content: "hostname,os_name,os_version,os_build\n"
+
+    - name: Append Windows data
+      lineinfile:
+        path: "/runner/project/{{ csv_file }}"
+        line: "{{ hostvars[item].csv_line }}"
+        insertafter: EOF
+      loop: "{{ groups['windows'] }}"
+
     - name: Git add
-      command: git add windows_inventory.csv
+      command: git add {{ csv_file }}
       args:
-        chdir: "{{ playbook_dir }}"
+        chdir: /runner/project
 
     - name: Git commit
       command: git commit -m "Update Windows inventory CSV"
       args:
-        chdir: "{{ playbook_dir }}"
+        chdir: /runner/project
       ignore_errors: yes
 
     - name: Git push
-      command: git push
+      command: git push origin main
       args:
-        chdir: "{{ playbook_dir }}"
+        chdir: /runner/project

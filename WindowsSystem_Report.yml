@@ -4,7 +4,7 @@
   gather_facts: no
 
   vars:
-    repo_path: /var/lib/awx/projects/windows-git-project
+    repo_path: /var/lib/awx/projects/windows-manual-project
     csv_file: windows_system_report.csv
 
   tasks:

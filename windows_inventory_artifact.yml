@@ -1,25 +1,46 @@
 ---
-- name: Windows Inventory CSV (AWX Artifacts)
+- name: Windows Inventory CSV and Push to GitHub
   hosts: all
+  gather_facts: yes
+
+  vars:
+    csv_file: windows_inventory.csv
+
+  tasks:
+    - name: Build CSV line
+      set_fact:
+        csv_line: "{{ inventory_hostname }},{{ ansible_os_name }},{{ ansible_os_version }}"
+
+    - name: Create CSV header (once)
+      copy:
+        dest: "{{ playbook_dir }}/{{ csv_file }}"
+        content: "hostname,os,version\n"
+      run_once: true
+      delegate_to: localhost
+
+    - name: Append CSV data
+      lineinfile:
+        path: "{{ playbook_dir }}/{{ csv_file }}"
+        line: "{{ csv_line }}"
+      delegate_to: localhost
+
+- name: Commit and Push CSV to GitHub
+  hosts: localhost
   gather_facts: no
 
   tasks:
-    - name: Collect OS info
-      ansible.windows.win_shell: |
-        $os = Get-CimInstance Win32_OperatingSystem
-        "$($env:COMPUTERNAME),$($os.Caption),$($os.Version)"
-      register: osinfo
+    - name: Git add
+      command: git add windows_inventory.csv
+      args:
+        chdir: "{{ playbook_dir }}"
 
-    - name: Build CSV content
-      set_fact:
-        csv_data: |
-          hostname,os,version
-          {% for h in ansible_play_hosts %}
-          {{ hostvars[h].osinfo.stdout }}
-          {% endfor %}
+    - name: Git commit
+      command: git commit -m "Update Windows inventory CSV"
+      args:
+        chdir: "{{ playbook_dir }}"
+      ignore_errors: yes
 
-    - name: Publish CSV as AWX artifact
-      set_stats:
-        data:
-          windows_inventory_csv: "{{ csv_data }}"
-        aggregate: true
+    - name: Git push
+      command: git push
+      args:
+        chdir: "{{ playbook_dir }}"

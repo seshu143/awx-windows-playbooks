@@ -12,18 +12,18 @@
         "$env:COMPUTERNAME,$($os.Caption),$($cpu.Name),$([math]::Round($mem.TotalPhysicalMemory/1GB,2))"
       register: sysinfo
 
-    - name: Create CSV
+    - name: Build CSV content
       delegate_to: localhost
       run_once: true
       copy:
         dest: /runner/project/windows_inventory.csv
         content: |
           Hostname,OS,CPU,MemoryGB
-          {% for h in groups['windows'] %}
-          {{ hostvars[h].sysinfo.stdout }}
+          {% for host in ansible_play_hosts_all %}
+          {{ hostvars[host].sysinfo.stdout }}
           {% endfor %}
 
-    - name: Expose CSV as artifact (THIS IS CRITICAL)
+    - name: Publish CSV as AWX Artifact
       set_stats:
         data:
           windows_inventory_csv: "/runner/project/windows_inventory.csv"

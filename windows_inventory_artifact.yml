@@ -1,5 +1,5 @@
 ---
-# PART 1: Collect data from Windows servers
+# PART 1: Collect data from Windows hosts
 - name: Collect Windows inventory
   hosts: all
   gather_facts: no
@@ -29,12 +29,13 @@
         dest: "/runner/project/{{ csv_file }}"
         content: "hostname,os_name,os_version,os_build\n"
 
-    - name: Append Windows data
+    - name: Append Windows data (safe AWX way)
       lineinfile:
         path: "/runner/project/{{ csv_file }}"
-        line: "{{ hostvars[item].csv_line }}"
+        line: "{{ item.value.csv_line }}"
         insertafter: EOF
-      loop: "{{ groups['windows'] }}"
+      loop: "{{ hostvars | dict2items }}"
+      when: item.value.csv_line is defined
 
     - name: Git add
       command: git add {{ csv_file }}

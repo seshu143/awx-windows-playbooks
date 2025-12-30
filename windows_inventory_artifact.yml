@@ -1,46 +1,31 @@
 ---
-- name: Collect Windows OS info
+- name: Windows Inventory CSV (AWX Artifact)
   hosts: all
   gather_facts: no
   tasks:
-    - name: Get OS info
+    - name: Collect OS info
       win_shell: |
         $os = Get-CimInstance Win32_OperatingSystem
         "$($env:COMPUTERNAME),$($os.Caption),$($os.Version),$($os.BuildNumber)"
       register: win_os
 
-    - name: Save CSV line per host
+    - name: Save CSV line
       set_fact:
         csv_line: "{{ inventory_hostname }},{{ win_os.stdout_lines[0] }}"
 
-- name: Build CSV and push to GitHub
+- name: Publish CSV as AWX artifact
   hosts: localhost
   gather_facts: no
   tasks:
-    - name: Create CSV header
-      copy:
-        dest: /runner/project/windows_inventory.csv
-        content: "ip,hostname,os,version,build\n"
+    - name: Build CSV content
+      set_fact:
+        csv_content: |
+          ip,hostname,os,version,build
+          {% for h in groups['all'] %}
+          {{ hostvars[h].csv_line }}
+          {% endfor %}
 
-    - name: Append Windows data
-      lineinfile:
-        path: /runner/project/windows_inventory.csv
-        line: "{{ hostvars[item].csv_line }}"
-        insertafter: EOF
-      loop: "{{ groups['all'] }}"
-
-    - name: Git add
-      command: git add windows_inventory.csv
-      args:
-        chdir: /runner/project
-
-    - name: Git commit
-      command: git commit -m "Update Windows inventory CSV"
-      args:
-        chdir: /runner/project
-      ignore_errors: yes
-
-    - name: Git push
-      command: git push origin main
-      args:
-        chdir: /runner/project
+    - name: Publish artifact
+      set_stats:
+        data:
+          windows_inventory_csv: "{{ csv_content }}"

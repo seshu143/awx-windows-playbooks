@@ -1,29 +1,25 @@
 ---
-- name: Windows Inventory CSV (Artifacts)
+- name: Windows Inventory CSV (AWX Artifacts)
   hosts: all
   gather_facts: no
 
   tasks:
-    - name: Collect system info
+    - name: Collect OS info
       ansible.windows.win_shell: |
         $os = Get-CimInstance Win32_OperatingSystem
-        $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
-        $mem = Get-CimInstance Win32_ComputerSystem
-        "$env:COMPUTERNAME,$($os.Caption),$($cpu.Name),$([math]::Round($mem.TotalPhysicalMemory/1GB,2))"
-      register: sysinfo
+        "$($env:COMPUTERNAME),$($os.Caption),$($os.Version)"
+      register: osinfo
 
     - name: Build CSV content
-      delegate_to: localhost
-      run_once: true
-      copy:
-        dest: /runner/project/windows_inventory.csv
-        content: |
-          Hostname,OS,CPU,MemoryGB
-          {% for host in ansible_play_hosts_all %}
-          {{ hostvars[host].sysinfo.stdout }}
+      set_fact:
+        csv_data: |
+          hostname,os,version
+          {% for h in ansible_play_hosts %}
+          {{ hostvars[h].osinfo.stdout }}
           {% endfor %}
 
-    - name: Publish CSV as AWX Artifact
+    - name: Publish CSV as AWX artifact
       set_stats:
         data:
-          windows_inventory_csv: "/runner/project/windows_inventory.csv"
+          windows_inventory_csv: "{{ csv_data }}"
+        aggregate: true

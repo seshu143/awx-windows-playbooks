@@ -27,7 +27,7 @@
         path: /runner/project/windows_inventory.csv
         line: "{{ hostvars[item].csv_line }}"
         insertafter: EOF
-      loop: "{{ groups['windows'] }}"
+      loop: "{{ groups['all'] }}"
 
     - name: Git add
       command: git add windows_inventory.csv

@@ -1,6 +1,6 @@
 ---
 - name: Collect Windows CPU, Memory, OS details
-  hosts: windows
+  hosts: all
   gather_facts: no
 
   tasks:

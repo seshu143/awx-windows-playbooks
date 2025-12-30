@@ -1,0 +1,43 @@
+---
+- name: Windows System Report CSV + Push to Git
+  hosts: all
+  gather_facts: no
+
+  vars:
+    repo_path: /var/lib/awx/projects/windows-git-project
+    csv_file: windows_system_report.csv
+
+  tasks:
+    - name: Collect system info
+      ansible.windows.win_shell: |
+        $os = Get-CimInstance Win32_OperatingSystem
+        $cpu = Get-CimInstance Win32_Processor
+        $ram = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)
+        Write-Output "$env:COMPUTERNAME,$($os.Caption),$($cpu.Count),$ram"
+      register: sysinfo
+
+    - name: Create CSV header (once)
+      copy:
+        content: "hostname,os,cpu,ram_gb\n"
+        dest: "{{ repo_path }}/{{ csv_file }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Append CSV row
+      lineinfile:
+        path: "{{ repo_path }}/{{ csv_file }}"
+        line: "{{ inventory_hostname }},{{ sysinfo.stdout }}"
+        insertafter: EOF
+      delegate_to: localhost
+
+- name: Commit CSV to Git
+  hosts: localhost
+  gather_facts: no
+
+  tasks:
+    - name: Commit and push CSV
+      shell: |
+        cd {{ repo_path }}
+        git add {{ csv_file }}
+        git commit -m "Windows system report CSV"
+        git push

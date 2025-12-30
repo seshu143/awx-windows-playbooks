@@ -9,12 +9,16 @@
   tasks:
     - name: Build CSV line
       set_fact:
-        csv_line: "{{ inventory_hostname }},{{ ansible_os_name }},{{ ansible_os_version }}"
+        csv_line: >-
+          {{ ansible_hostname }},
+          {{ ansible_facts.os_name }},
+          {{ ansible_facts.os_version }},
+          {{ ansible_facts.os_build }}
 
     - name: Create CSV header (once)
       copy:
         dest: "{{ playbook_dir }}/{{ csv_file }}"
-        content: "hostname,os,version\n"
+        content: "hostname,os_name,os_version,os_build\n"
       run_once: true
       delegate_to: localhost
 

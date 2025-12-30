@@ -1,44 +1,36 @@
 ---
-# PART 1: Collect data from Windows hosts
-- name: Collect Windows inventory
+- name: Collect Windows OS info
   hosts: all
   gather_facts: no
-
   tasks:
-    - name: Collect Windows OS details
-      ansible.windows.win_shell: |
+    - name: Get OS info
+      win_shell: |
         $os = Get-CimInstance Win32_OperatingSystem
         "$($env:COMPUTERNAME),$($os.Caption),$($os.Version),$($os.BuildNumber)"
       register: win_os
 
     - name: Save CSV line per host
       set_fact:
-        csv_line: "{{ win_os.stdout }}"
+        csv_line: "{{ inventory_hostname }},{{ win_os.stdout_lines[0] }}"
 
-# PART 2: Build CSV and push to GitHub (controller only)
 - name: Build CSV and push to GitHub
   hosts: localhost
   gather_facts: no
-
-  vars:
-    csv_file: windows_inventory.csv
-
   tasks:
     - name: Create CSV header
       copy:
-        dest: "/runner/project/{{ csv_file }}"
-        content: "hostname,os_name,os_version,os_build\n"
+        dest: /runner/project/windows_inventory.csv
+        content: "ip,hostname,os,version,build\n"
 
-    - name: Append Windows data (safe AWX way)
+    - name: Append Windows data
       lineinfile:
-        path: "/runner/project/{{ csv_file }}"
-        line: "{{ item.value.csv_line }}"
+        path: /runner/project/windows_inventory.csv
+        line: "{{ hostvars[item].csv_line }}"
         insertafter: EOF
-      loop: "{{ hostvars | dict2items }}"
-      when: item.value.csv_line is defined
+      loop: "{{ groups['windows'] }}"
 
     - name: Git add
-      command: git add {{ csv_file }}
+      command: git add windows_inventory.csv
       args:
         chdir: /runner/project
 
